@@ -13,7 +13,10 @@ def make_repo(tmp: Path, *, good: bool) -> Path:
     root.mkdir()
     if good:
         (root / "README.md").write_text("# demo\n\n## Install\npip install demo\n\n"
-                                        "## Usage\ndemo --help\n" + "x" * 300, encoding="utf-8")
+                                        "## Usage\ndemo --help\n\n## Architecture\ncli -> core\n\n"
+                                        "```bash\npytest\n```\n" + "x" * 300, encoding="utf-8")
+        (root / "AGENTS.md").write_text("# agents\nRun tests with pytest. "
+                                        "Do not edit generated files.\n" + "y" * 200, encoding="utf-8")
         (root / "LICENSE").write_text("MIT", encoding="utf-8")
         (root / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
         (root / "requirements.txt").write_text("requests==2.31.0\n", encoding="utf-8")
@@ -53,6 +56,17 @@ class TestDiagnose(unittest.TestCase):
     def test_grades(self):
         self.assertEqual(grade_of(95), "A")
         self.assertEqual(grade_of(10), "F")
+
+    def test_ai_readiness_axis(self):
+        with tempfile.TemporaryDirectory() as td:
+            good = diagnose(make_repo(Path(td), good=True))
+            bad = diagnose(make_repo(Path(td), good=False))
+            g_ai = next(r for r in good.results if r.key == "ai")
+            b_ai = next(r for r in bad.results if r.key == "ai")
+            self.assertGreaterEqual(g_ai.score, 85, g_ai)
+            self.assertLess(b_ai.score, 60, b_ai)
+            self.assertTrue(any("AGENTS.md" in f.message or "agent instruction" in f.message.lower()
+                                for f in b_ai.findings), b_ai.findings)
 
 
 if __name__ == "__main__":

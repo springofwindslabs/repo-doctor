@@ -1,23 +1,28 @@
 # 🩺 repo-doctor
 
-**One-command repository health diagnosis.** Zero dependencies. Python 3.9+.
+**Is your repo ready for AI coding agents — and for humans? One command tells you.**
+Zero dependencies. Python 3.9+. Fully offline.
 
 ```
   HEALTH  ████████████████░░░░  82.4/100   GRADE B
 
-  [Documentation]  90/100
-    ✅ README covers install & usage
-    🟦 SECURITY.md not found
+  [AI readiness]  60/100
+    🟧 No agent instruction file (AGENTS.md / CLAUDE.md / .cursorrules ...)
+       ↳ fix: Add AGENTS.md: 10 lines on what the project is, how to build/test,
+         and what an agent must not touch. Biggest single lever for AI-assisted development.
   [Secrets exposure]  40/100
     🟥 AWS access key ID [aws-access-key]  (config/deploy.yml:12)
        ↳ fix: Remove from history (git filter-repo) and ROTATE the credential.
   ...
 ```
 
-`repo-doctor` scans any repository and scores six axes in seconds:
+AI coding agents (Copilot, Claude, Cursor, Codex…) fail on repos they can't
+understand. `repo-doctor` scores **seven axes** in seconds — the first one is
+the one nobody else measures:
 
 | Axis | What it catches |
 |---|---|
+| 🤖 **AI readiness** | no AGENTS.md / CLAUDE.md / .cursorrules, undiscoverable build/test commands, no entry point, no architecture notes, no explicit agent constraints |
 | 📚 Documentation | missing/thin README, no LICENSE, no CHANGELOG / CONTRIBUTING / SECURITY |
 | 🧹 Repo hygiene | committed `node_modules` / `__pycache__` / `.DS_Store`, files > 5 MB, missing `.gitignore` |
 | 🔑 Secrets exposure | AWS keys, GitHub/Slack tokens, private-key blocks, hard-coded credentials, tracked `.env` |
@@ -53,7 +58,7 @@ The free edition is fully functional for console / JSON / Markdown diagnosis.
 
 | | Free | PRO |
 |---|---|---|
-| 6-axis diagnosis + fixes | ✅ | ✅ |
+| 7-axis diagnosis incl. **AI readiness** + fixes | ✅ | ✅ |
 | JSON / Markdown output | ✅ | ✅ |
 | Secret rules | 5 core rules | **15+ rules** (Stripe, OpenAI, HF, Google, DB URLs, JWT…) |
 | Self-contained **HTML dashboard** (`--html`) | — | ✅ gauge + per-axis cards |

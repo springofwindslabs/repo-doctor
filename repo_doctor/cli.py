@@ -21,8 +21,9 @@ PRO_URL = "https://springofwindslabs.gumroad.com/l/repodoctor"
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="repo-doctor",
-        description="One-command repository health diagnosis (docs / hygiene / "
-                    "secrets / tests / deps / git). Zero dependencies.")
+        description="Is your repo ready for AI coding agents — and for humans? "
+                    "7-axis diagnosis: AI readiness / docs / hygiene / secrets / "
+                    "tests & CI / deps / git. Zero dependencies.")
     p.add_argument("path", nargs="?", default=".", help="repository path (default: .)")
     p.add_argument("--json", action="store_true", help="output JSON")
     p.add_argument("--md", metavar="FILE", help="write a Markdown report")

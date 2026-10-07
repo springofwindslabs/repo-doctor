@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
 INCLUDE = [
-    "README.md", "LICENSE", "pyproject.toml", ".gitignore",
+    "README.md", "LICENSE", "AGENTS.md", "pyproject.toml", ".gitignore",
     "repo_doctor/__init__.py", "repo_doctor/__main__.py",
     "repo_doctor/cli.py", "repo_doctor/checks.py", "repo_doctor/report.py",
     "tests/test_repo_doctor.py",
@@ -35,5 +35,5 @@ def build(name: str, extra: list[str]) -> Path:
 
 
 if __name__ == "__main__":
-    build("repo-doctor-free-1.0.0.zip", [])
-    build("repo-doctor-pro-1.0.0.zip", PRO_ONLY)
+    build("repo-doctor-free-1.1.0.zip", [])
+    build("repo-doctor-pro-1.1.0.zip", PRO_ONLY)

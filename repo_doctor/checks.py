@@ -126,7 +126,115 @@ def check_docs(root: Path, files: list[Path]) -> CheckResult:
             score -= pts
             f.append(Finding("docs", "info", f"{extra.upper()}.md not found",
                              fix=f"Optional but raises trust: add {extra.upper()}.md."))
-    return CheckResult("docs", "Documentation", max(score, 0), 20, f)
+    return CheckResult("docs", "Documentation", max(score, 0), 15, f)
+
+
+# Files that count as agent instructions, in discovery-priority order.
+AGENT_INSTRUCTION_FILES = [
+    "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursorrules", ".clinerules",
+    ".windsurfrules", ".github/copilot-instructions.md", ".aider.conf.yml",
+]
+AGENT_INSTRUCTION_DIRS = [".cursor/rules", ".github/instructions", ".claude"]
+
+
+def check_ai_readiness(root: Path, files: list[Path]) -> CheckResult:
+    """Is this repo ready for an AI coding agent to work in?
+
+    Agents succeed when they can discover: (1) instructions written for them,
+    (2) how to build/test/lint, (3) the entry point, (4) the architecture,
+    (5) explicit constraints ("do not touch X").
+    """
+    f: list[Finding] = []
+    score = 100.0
+    rel = {str(p.relative_to(root)).replace("\\", "/") for p in files}
+
+    # 1. agent instruction files (the core differentiator)
+    inst = [n for n in AGENT_INSTRUCTION_FILES if n in rel]
+    inst_dirs = [d for d in AGENT_INSTRUCTION_DIRS
+                 if any(r.startswith(d + "/") for r in rel)]
+    inst_text = ""
+    if not inst and not inst_dirs:
+        score -= 40
+        f.append(Finding("ai", "warning", "No agent instruction file (AGENTS.md / "
+                         "CLAUDE.md / .cursorrules / copilot-instructions.md ...)",
+                         fix="Add AGENTS.md: 10 lines on what the project is, how to "
+                             "build/test, and what an agent must not touch. Biggest "
+                             "single lever for AI-assisted development."))
+    else:
+        found = inst + inst_dirs
+        f.append(Finding("ai", "ok", "Agent instructions found: " + ", ".join(found)))
+        inst_text = "\n".join(_read(root / n) for n in inst)
+        if inst and len(inst_text) < 200:
+            score -= 15
+            f.append(Finding("ai", "warning",
+                             f"Agent instruction file is very thin ({len(inst_text)} chars)",
+                             inst[0], "Add build/test commands, architecture notes and "
+                                      "constraints — thin files give agents nothing to work with."))
+
+    # 2. build / test / lint commands discoverable by an agent
+    readme_low = ""
+    for p in files:
+        if p.parent == root and p.name.lower().startswith("readme"):
+            readme_low = _read(p).lower()
+            break
+    cmd_sources = []
+    if {"Makefile", "makefile", "justfile", "Taskfile.yml"} & {p.name for p in files if p.parent == root}:
+        cmd_sources.append("Makefile/justfile")
+    if "package.json" in rel and '"scripts"' in _read(root / "package.json"):
+        cmd_sources.append("package.json scripts")
+    if "pyproject.toml" in rel:
+        py = _read(root / "pyproject.toml")
+        if "[project.scripts]" in py or "[tool.pytest" in py or "[tool.ruff" in py or "[tool.poe" in py:
+            cmd_sources.append("pyproject.toml")
+    if re.search(r"```[a-z]*\s*[^`]*\b(pytest|npm (test|run)|make |go test|cargo (test|build)|pip install|python -m)\b",
+                 readme_low):
+        cmd_sources.append("README code blocks")
+    if re.search(r"\b(pytest|npm test|make test|go test|cargo test|unittest)\b", inst_text.lower()):
+        cmd_sources.append("agent instructions")
+    if not cmd_sources:
+        score -= 25
+        f.append(Finding("ai", "warning", "Build/test/lint commands are not discoverable",
+                         fix="Agents guess (badly) when commands aren't written down. Put "
+                             "runnable commands in AGENTS.md, a Makefile or README code blocks."))
+    else:
+        f.append(Finding("ai", "ok", "Runnable commands discoverable via: " + ", ".join(cmd_sources)))
+
+    # 3. entry point discoverable
+    entry = []
+    if "pyproject.toml" in rel and "[project.scripts]" in _read(root / "pyproject.toml"):
+        entry.append("pyproject [project.scripts]")
+    if "package.json" in rel and re.search(r'"(main|bin)"\s*:', _read(root / "package.json")):
+        entry.append("package.json main/bin")
+    if any(r.endswith(("__main__.py", "main.py", "main.go", "index.js", "index.ts", "app.py", "cli.py")) for r in rel):
+        entry.append("conventional entry file")
+    if not entry:
+        score -= 15
+        f.append(Finding("ai", "info", "No obvious entry point (main/cli/__main__)",
+                         fix="Declare an entry point so agents know where execution starts."))
+    else:
+        f.append(Finding("ai", "ok", "Entry point discoverable: " + entry[0]))
+
+    # 4. architecture description
+    arch = any(n in rel for n in ("ARCHITECTURE.md", "docs/ARCHITECTURE.md", "DESIGN.md")) \
+        or "architecture" in readme_low or "architecture" in inst_text.lower() \
+        or "## structure" in readme_low or "project structure" in readme_low
+    if not arch:
+        score -= 10
+        f.append(Finding("ai", "info", "No architecture/structure description found",
+                         fix="A 5-line module map in README or AGENTS.md stops agents from "
+                             "editing the wrong layer."))
+    else:
+        f.append(Finding("ai", "ok", "Architecture/structure is described"))
+
+    # 5. explicit constraints for agents
+    if inst_text and re.search(r"(?i)\b(do not|don'?t|never|must not|\u7981\u6b62|\u3057\u306a\u3044)\b", inst_text):
+        f.append(Finding("ai", "ok", "Agent instructions contain explicit constraints"))
+    elif inst_text:
+        score -= 10
+        f.append(Finding("ai", "info", "Agent instructions lack explicit constraints",
+                         fix='State what an agent must NOT do ("never edit generated/", '
+                             '"do not bump versions") — prevents the costliest mistakes.'))
+    return CheckResult("ai", "AI readiness", max(score, 0), 20, f)
 
 
 def check_hygiene(root: Path, files: list[Path]) -> CheckResult:
@@ -159,7 +267,7 @@ def check_hygiene(root: Path, files: list[Path]) -> CheckResult:
                          "Large binaries bloat clones — use Git LFS or external storage."))
     if score == 100:
         f.append(Finding("hygiene", "ok", "Tree is clean (no junk, no oversized files)"))
-    return CheckResult("hygiene", "Repo hygiene", max(score, 0), 15, f)
+    return CheckResult("hygiene", "Repo hygiene", max(score, 0), 10, f)
 
 
 def check_secrets(root: Path, files: list[Path]) -> CheckResult:
@@ -217,7 +325,7 @@ def check_testing_ci(root: Path, files: list[Path]) -> CheckResult:
                          fix="Add a GitHub Actions workflow that runs the tests on push."))
     else:
         f.append(Finding("testing", "ok", "CI configuration present"))
-    return CheckResult("testing", "Tests & CI", max(score, 0), 20, f)
+    return CheckResult("testing", "Tests & CI", max(score, 0), 15, f)
 
 
 def check_deps(root: Path, files: list[Path]) -> CheckResult:
@@ -263,7 +371,7 @@ def check_git(root: Path, files: list[Path]) -> CheckResult:
     score = 100.0
     if not (root / ".git").exists():
         f.append(Finding("git", "info", "Not a git repository — history checks skipped"))
-        return CheckResult("git", "Git history", 70, 10, f)
+        return CheckResult("git", "Git history", 70, 5, f)
     cnt = _git(root, "rev-list", "--count", "HEAD")
     if cnt:
         n = int(cnt)
@@ -291,11 +399,11 @@ def check_git(root: Path, files: list[Path]) -> CheckResult:
         n = len(dirty.splitlines())
         score -= min(15, n)
         f.append(Finding("git", "info", f"{n} uncommitted change(s) in working tree"))
-    return CheckResult("git", "Git history", max(score, 0), 10, f)
+    return CheckResult("git", "Git history", max(score, 0), 5, f)
 
 
-CHECKS = [check_docs, check_hygiene, check_secrets, check_testing_ci,
-          check_deps, check_git]
+CHECKS = [check_ai_readiness, check_docs, check_hygiene, check_secrets,
+          check_testing_ci, check_deps, check_git]
 
 
 def grade_of(score: float) -> str:
