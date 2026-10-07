@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repo-doctor-cli"
+version = "1.0.0"
+description = "One-command repository health diagnosis: docs, hygiene, secret leaks, tests/CI, dependencies, git history. Zero dependencies."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "SpringOfWinds Labs" }]
+keywords = ["repository", "health", "audit", "secrets", "ci", "lint"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+[project.scripts]
+repo-doctor = "repo_doctor.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/springofwindslabs/repo-doctor"
+Pro = "https://springofwindslabs.gumroad.com/l/repodoctor"
+
+[tool.setuptools.packages.find]
+include = ["repo_doctor*"]

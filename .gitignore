@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+dist/
+# PRO components are sold on Gumroad — never commit to the public repo
+repo_doctor/pro.py
+PRO_LICENSE.txt
+dist_selfcheck.*
+build/
+*.egg-info/
+.repo_doctor_history.json
+report.md
+health.html
+health.svg
