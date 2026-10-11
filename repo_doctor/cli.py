@@ -16,6 +16,28 @@ except ImportError:
     HAS_PRO = False
 
 PRO_URL = "https://springofwindslabs.gumroad.com/l/repodoctor"
+# CLI-origin traffic is tagged separately from README links (utm_medium=readme)
+# so the funnel can tell which touchpoint produced the visit.
+PRO_URL_TAIL = PRO_URL + "?utm_source=cli&utm_medium=tail&utm_campaign=repo_doctor"
+PRO_URL_GATE = PRO_URL + "?utm_source=cli&utm_medium=flag_gate&utm_campaign=repo_doctor"
+
+PRO_NOTICE = f"""
+  ----------------------------------------------------------------
+  Want to enforce repository quality in CI?
+
+  repo-doctor PRO adds:
+    - Self-contained HTML diagnostic dashboard   (--html report.html)
+    - CI quality gate: exit 1 below a threshold  (--fail-under 80)
+    - SVG health badge for your README           (--badge health.svg)
+    - 15+ secret-detection rules (Stripe, OpenAI, HF, Google, DB URLs, JWT)
+    - Score history & trend chart                (--history)
+
+  One-time purchase: $19 - no subscription.
+  -> {PRO_URL_TAIL}
+
+  The free edition remains fully usable.
+  ----------------------------------------------------------------
+"""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not HAS_PRO and (a.html or a.badge or a.fail_under is not None or a.history):
         print(f"repo-doctor: --html / --badge / --fail-under / --history are PRO "
-              f"features.\nGet the PRO edition (one-time purchase): {PRO_URL}",
+              f"features.\nGet the PRO edition (one-time purchase): {PRO_URL_GATE}",
               file=sys.stderr)
         return 2
 
@@ -64,9 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(render_console(d))
         if not HAS_PRO:
-            print(f"  ── free edition ── PRO adds: HTML dashboard / SVG badge / "
-                  f"CI gate / 10+ extra secret rules / score history\n"
-                  f"  → {PRO_URL}\n")
+            print(PRO_NOTICE)
 
     if HAS_PRO and a.fail_under is not None and d.score < a.fail_under:
         print(f"repo-doctor: FAIL — score {d.score} < gate {a.fail_under}",
